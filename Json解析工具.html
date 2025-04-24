@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON解析工具 v2.2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+        }
+        .button-group {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .button-group button {
+            min-width: 160px;
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            background-color: #1890ff;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(24,144,255,0.2);
+        }
+        .button-group button:hover {
+            background-color: #40a9ff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(24,144,255,0.3);
+        }
+        .button-group button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(24,144,255,0.2);
+        }
+        .editor-container {
+            flex: 1;
+            display: flex;
+            gap: 12px;
+            height: calc(100% - 74px);
+        }
+        .editor-box {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 2px 8px;
+            font-size: 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 3px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            line-height: 1.5;
+            z-index: 1;
+        }
+        .copy-btn:hover {
+            color: #1890ff;
+            border-color: #1890ff;
+            background-color: #e6f7ff;
+        }
+        .copy-btn.success {
+            color: #52c41a;
+            border-color: #52c41a;
+            background-color: #f6ffed;
+        }
+        textarea {
+            width: 100%;
+            height: 100%;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            resize: none;
+            background-color: white;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+        }
+        .json-tree-viewer {
+            flex: 1;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            overflow: auto;
+            background-color: white;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+        }
+        .json-tree-viewer:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+        }
+        .tree-children {
+            position: relative;
+            margin-left: 20px;
+            padding-left: 20px;
+            --line-height: 0px;
+        }
+        .tree-children:before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            height: var(--line-height);
+            border-left: 1px dotted #d9d9d9;
+        }
+        .tree-node {
+            position: relative;
+            padding: 2px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .tree-node:before {
+            content: '';
+            position: absolute;
+            left: -12px;
+            top: 12px;
+            width: 36px;
+            height: 1px;
+            border-top: 1px dotted #d9d9d9;
+        }
+        .tree-node:last-child:before {
+            border-color: #d9d9d9;
+        }
+        .tree-node.root {
+            margin-left: 0;
+        }
+        .tree-node.root:before {
+            display: none;
+        }
+        .tree-key {
+            color: #000;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-left: 38px;
+        }
+        .tree-key:not(.parent) {
+            padding-left: 38px;
+        }
+        .tree-key.parent::before {
+            content: '+';
+            position: absolute;
+            left: 0;
+            top: 1px;
+            width: 12px;
+            height: 12px;
+            color: #666;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 12px;
+            text-align: center;
+            border: 1px solid #999;
+            border-radius: 50%;
+            background-color: #fff;
+            transition: all 0.2s;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tree-key.parent:hover::before {
+            color: #fff;
+            background-color: #999;
+            border-color: #666;
+            transform: scale(1.1);
+        }
+        .tree-key.parent.expanded::before {
+            content: '-';
+            background-color: #f0f0f0;
+        }
+        .tree-key.parent.expanded:hover::before {
+            color: #fff;
+            background-color: #999;
+            border-color: #666;
+        }
+        .tree-type-icon {
+            position: absolute;
+            left: 20px;
+            top: 3px;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: monospace;
+            z-index: 1;
+        }
+        .tree-type-icon.object {
+            content: '{ }';
+            color: #722ed1;
+            background-color: #f9f0ff;
+        }
+        .tree-type-icon.array {
+            content: '[ ]';
+            color: #1890ff;
+            background-color: #e6f7ff;
+        }
+        .tree-type-icon.value {
+            width: 8px;
+            height: 8px;
+            top: 9px;
+            left: 24px;
+            border-radius: 50%;
+            background-color: #52c41a;
+        }
+        .tree-value {
+            margin-left: 4px;
+        }
+        .tree-value.number {
+            color: #1a1aa6;
+        }
+        .tree-value.boolean {
+            color: #1a1aa6;
+        }
+        .tree-value.null {
+            color: #1a1aa6;
+        }
+        .tree-value.string {
+            color: #22a21f;
+        }
+        .tree-colon {
+            margin: 0 4px;
+            color: #666;
+        }
+        .tree-children.hidden {
+            display: none;
+        }
+        .tree-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 1;
+        }
+        .tree-controls button {
+            padding: 2px 8px;
+            font-size: 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 3px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s;
+            line-height: 1.5;
+        }
+        .tree-controls button:hover {
+            color: #1890ff;
+            border-color: #1890ff;
+            background-color: #e6f7ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- JSON解析工具 v2.2 - 优化树形结构：重新设计连接线样式，完善节点布局 -->
+        <div class="button-group">
+            <button onclick="formatJSON()">格式化</button>
+            <button onclick="minifyJSON()">删除空格</button>
+            <button onclick="escapeString()">字符转义</button>
+            <button onclick="unescapeString()">去除转义</button>
+        </div>
+        <div class="editor-container">
+            <div class="editor-box">
+                <textarea id="input" placeholder="请在此输入JSON字符串..."></textarea>
+                <button class="copy-btn" onclick="copyContent('input')">复制</button>
+            </div>
+            <div class="editor-box">
+                <div class="tree-controls">
+                    <button onclick="expandAllNodes()">展开所有节点</button>
+                    <button onclick="collapseAllNodes()">收起所有节点</button>
+                </div>
+                <div id="treeViewer" class="json-tree-viewer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function createTreeNode(key, value, isLast = true, isRoot = false, arrayIndex = null) {
+            const node = document.createElement('div');
+            node.className = `tree-node${isRoot ? ' root' : ''}`;
+            
+            let content = '';
+            const valueType = typeof value;
+            const isObject = value !== null && (valueType === 'object');
+            const isArray = Array.isArray(value);
+            
+            if (key !== null || arrayIndex !== null || isRoot) {
+                // 添加类型图标
+                if (isObject) {
+                    content += `<span class="tree-type-icon ${isArray ? 'array' : 'object'}">${isArray ? '[]' : '{}'}</span>`;
+                } else {
+                    content += '<span class="tree-type-icon value"></span>';
+                }
+                
+                // 如果是数组元素，只使用索引作为键名
+                const displayKey = arrayIndex !== null ? `${arrayIndex}` : (isRoot ? '根节点' : key || '');
+                
+                // 根节点默认展开，其他节点默认折叠
+                content += `<span class="tree-key${isObject ? ' parent' : ''}${isRoot ? ' expanded' : ''}">${displayKey}</span>`;
+                
+                // 只有非对象类型的节点才显示冒号
+                if (!isObject) {
+                    content += `<span class="tree-colon">:</span>`;
+                }
+            }
+
+            if (isObject) {
+                const entries = isArray ? value : Object.entries(value);
+                const childContainer = document.createElement('div');
+                // 根节点的子容器不隐藏，其他默认隐藏
+                childContainer.className = `tree-children${isRoot ? '' : ' hidden'}`;
+                
+                entries.forEach((item, index) => {
+                    const [childKey, childValue] = isArray ? [null, item] : item;
+                    const isLastChild = index === entries.length - 1;
+                    const childNode = createTreeNode(childKey, childValue, isLastChild, false, isArray ? index : null);
+                    childContainer.appendChild(childNode);
+                });
+                
+                node.innerHTML = content;
+                node.appendChild(childContainer);
+            } else {
+                let valueStr = '';
+                if (value === null) {
+                    valueStr = `<span class="tree-value null">null</span>`;
+                } else if (valueType === 'string') {
+                    valueStr = `<span class="tree-value string">"${value}"</span>`;
+                } else {
+                    valueStr = `<span class="tree-value ${valueType}">${value}</span>`;
+                }
+                node.innerHTML = `${content}${valueStr}`;
+            }
+            
+            return node;
+        }
+
+        function toggleNode(event) {
+            const keyElement = event.target;
+            if (!keyElement.classList.contains('tree-key') || !keyElement.classList.contains('parent')) {
+                return;
+            }
+            
+            keyElement.classList.toggle('expanded');
+            const childrenContainer = keyElement.closest('.tree-node').querySelector('.tree-children');
+            if (childrenContainer) {
+                childrenContainer.classList.toggle('hidden');
+                updateParentLinesHeight(childrenContainer);
+            }
+        }
+
+        function updateParentLinesHeight(element) {
+            const treeViewer = document.getElementById('treeViewer');
+            const allChildren = treeViewer.getElementsByClassName('tree-children');
+            
+            for (let container of allChildren) {
+                if (!container.classList.contains('hidden')) {
+                    // 获取最后一个直接子节点的位置
+                    const lastChild = container.lastElementChild;
+                    if (lastChild) {
+                        // 计算到最后一个子节点水平线的位置（12px是水平线的top值）
+                        const height = lastChild.offsetTop + 12;
+                        container.style.setProperty('--line-height', height + 'px');
+                    }
+                } else {
+                    container.style.setProperty('--line-height', '0px');
+                }
+            }
+        }
+
+        function expandAllNodes() {
+            const treeViewer = document.getElementById('treeViewer');
+            const allKeys = treeViewer.getElementsByClassName('tree-key parent');
+            const allChildren = treeViewer.getElementsByClassName('tree-children');
+            
+            for (let key of allKeys) {
+                key.classList.add('expanded');
+            }
+            
+            for (let container of allChildren) {
+                container.classList.remove('hidden');
+            }
+            
+            updateParentLinesHeight(treeViewer);
+        }
+
+        function collapseAllNodes() {
+            const treeViewer = document.getElementById('treeViewer');
+            const allKeys = treeViewer.getElementsByClassName('tree-key parent');
+            const allChildren = treeViewer.getElementsByClassName('tree-children');
+            
+            // 保持根节点展开
+            for (let key of allKeys) {
+                if (!key.textContent.includes('总节点')) {
+                    key.classList.remove('expanded');
+                }
+            }
+            
+            for (let container of allChildren) {
+                const parentKey = container.parentElement.querySelector('.tree-key');
+                if (!parentKey || !parentKey.textContent.includes('总节点')) {
+                    container.classList.add('hidden');
+                }
+            }
+            
+            updateParentLinesHeight(treeViewer);
+        }
+
+        function formatJSON() {
+            try {
+                const input = document.getElementById('input');
+                const parsed = JSON.parse(input.value);
+                
+                input.value = JSON.stringify(parsed, null, 2);
+                
+                const treeViewer = document.getElementById('treeViewer');
+                treeViewer.innerHTML = '';
+                const rootNode = createTreeNode(null, parsed, true, true);
+                treeViewer.appendChild(rootNode);
+                
+                updateParentLinesHeight(treeViewer);
+                
+                treeViewer.removeEventListener('click', toggleNode);
+                treeViewer.addEventListener('click', toggleNode);
+            } catch (e) {
+                document.getElementById('treeViewer').innerHTML = `
+                    <div class="error" style="color: #ff4d4f; padding: 16px; background-color: #fff2f0; border: 1px solid #ffccc7; border-radius: 4px; margin: 8px;">
+                        <div style="font-weight: 500; margin-bottom: 8px;">JSON格式错误</div>
+                        <div style="font-family: monospace; font-size: 13px;">${e.message}</div>
+                    </div>`;
+            }
+        }
+
+        function minifyJSON() {
+            try {
+                const input = document.getElementById('input');
+                const parsed = JSON.parse(input.value);
+                input.value = JSON.stringify(parsed);
+                // 清空树形视图
+                document.getElementById('treeViewer').innerHTML = '';
+            } catch (e) {
+                input.value = '错误：无效的JSON格式\n' + e.message;
+            }
+        }
+
+        function escapeString() {
+            const input = document.getElementById('input');
+            input.value = JSON.stringify(input.value);
+            // 清空树形视图
+            document.getElementById('treeViewer').innerHTML = '';
+        }
+
+        function unescapeString() {
+            try {
+                const input = document.getElementById('input');
+                input.value = JSON.parse(input.value);
+                // 清空树形视图
+                document.getElementById('treeViewer').innerHTML = '';
+            } catch (e) {
+                input.value = '错误：无效的转义字符串\n' + e.message;
+            }
+        }
+
+        function copyContent(elementId) {
+            const element = document.getElementById(elementId);
+            const button = element.nextElementSibling;
+            
+            // 复制内容
+            element.select();
+            document.execCommand('copy');
+            
+            // 取消选中
+            window.getSelection().removeAllRanges();
+            
+            // 显示复制成功状态
+            button.textContent = '已复制';
+            button.classList.add('success');
+            
+            // 1.5秒后恢复按钮状态
+            setTimeout(() => {
+                button.textContent = '复制';
+                button.classList.remove('success');
+            }, 1500);
+        }
+
+        // 初始化显示状态
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('input').value = '';
+            document.getElementById('treeViewer').innerHTML = '';
+        });
+    </script>
+</body>
+</html>
